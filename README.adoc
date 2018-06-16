@@ -1,0 +1,148 @@
+= MGP: Maven (Github) Proxy
+
+A PHP script that dynamically publishes Github repositories as maven repositories
+
+== Synopsis
+
+So you've developed a library that you want to distribute to other Java developers  There are 3 primary ways to distribute this:
+
+1. Provide a download link for the jar file.
+2. Provide "build-it-yourself" instructions.
+3. Upload it to Maven Central or JCenter, or some other Maven repository.
+
+**Problem Publishing to Maven Central == Painful**
+
+For developers that are using Maven, or Gradle, or SBT as a build tool, option 3 is the *best* option because it allows them to simply paste a snippet into their build file, and they will have direct access to your library, and all of its dependencies.  
+
+The problem is that uploading to Maven Central (and JCenter) is painful as paper-cuts.  In addition, if you didn't use Maven to develop your library, but instead used a different tool-chain (like Ant), publishing to Maven central is even *harder*.  It seems like a lot of unnecessary steps to have to publish changes to maven central every time I change my library.  
+
+I already host everything on Github, and it keeps track of all changes automatically.  Effectively every commit constitutes a new version of my library that someone could "pin" their project to. Why can't I just use "Github" as my repository and let Maven get my library directly from there?  
+
+**JitPack to the Rescue?**
+
+https://jitpack.io[JitPack] appears to solve this exact problem.  It will dynamically "pack" your library directly from your Github repository so that it can be accessed just like it was in a Maven repository.  It uses naming conventions for your groupId and artifactIds (e.g. groupID is *com.github.User*, where *User* is your Github username, and artifactId is the name of your github repository), so users can simply add a snippet to their build file to add a dependency to your library, and they can target any commit, branch, or tag from your github repo.
+
+JitPack accomplishes this by actually checking out your Github project and building it on their servers to obtain resources that maven expects.  It supports most of the modern build tools, including Maven, Gradle, and SBT - and it also supports Ant to a limited extent.  It will look for the appropriate build files (e.g. pom.xml, build.gradle) in the repository root to decide how to build your project, and it publishes the result. You can also customize the build process by adding a jitpack.yml file to your repository that includes directives to customize the build environment and process.
+
+**Where JitPack Falls Short...***
+
+Unfortunately JitPack, only *almost* gets me where I need to go.  If my repository includes only a single project at its root, and it produces only a single artifact that I want to publish, then it will work great.  However, most of my Github repositories include multiple projects, and some of them contain subprojects.  The only way to publish multiple artifacts from a single Github repository on Jitpack appears to be using Maven or Gradle multi-module projects.  That is too rigid for my needs, as many of my projects are developed with Ant, and migrating them to be pure Maven or Gradle projects would be difficult, and in some cases impossible. I thought about adding separate maven build files as an alternate way to build the projects but this seems to trip up other CI tools like Travis, not to mention the problems that it would create with humans trying to figure out how to build the project.
+
+**What I Needed**
+
+The process that would be ideal for me is to store the pre-built jar file inside my Git repository.  I would update this whenever I make "releasable" changes.  This gives me the flexibility to build my jar *however I want*.  In addition to that, I have no problem making a `pom.xml` file for each jar I wish to distribute to declare such things as its dependencies, and where the jar file can be found.  Then a tool (like Jitpack) could completely skip the "build" step, and just serve the jar in a format that Maven/Gradle/SBT will accept.
+
+This is why I built MGP
+
+== Project Goals
+
+. Be able to publish jar files directly from Github so that they can be used as dependencies in Maven/Gradle/SBT projects.
+. Use Github's built-in versioning to handle artifact versioning.  E.g. Any branch, tag, or commit can be targeted.
+. Jars should be pre-built and stored inside the Github repository. **MGP will not try to check out and/or build any projects in the repo**
+. Repository layout can have a root pom.xml file, and/or subdirectories with their own pom.xml files which describe the artifacts to be published.
+. groupId and artifactIds are determined by naming conventions:
+.. Artifacts defined in the repository root's pom.xml have `groupId=com.github.<username>` and `artifactId=<repositoryName>`
+.. Artifacts defined in a subdirectory of the repository (1st level only) have `groupId=com.github.<username>.<repositoryName>` and `artifactId=<directoryName>`.
+.. The `<groupId>`, '<artifactId>`, and `<version>` tags of the artifact pom.xml file will be ignored and replaced by MGP to match the values of the request.
+. The pom.xml for each artifact must include a `<jar.path>path/to/library.jar</jar.path>` tag in its `<properties>` section which points to its associated jar file in the repository (via relative path), or the artifact will be ignored by MGP.
+. MGP should be as *light* as possible on both CPU and network bandwidth.
+.. HTTP requests for `jar` files should simply return an HTTP 302 response directing the client to download directly from Github.
+.. MGP *does* need to download the actual jar for sha1 checksum requests, but these values should be cached so that the download only happens when the jar has been changed.
+... For tag and commit versions, we don't need to even check with github to see if the file has been changed.  We can always just return the cached checksum.
+... For branch versions (signified with a "-SNAPSHOT" suffix), we use ETags and HEAD requests to check for changes to avoid downloading the jar. 
+
+
+== Requirements
+
+. Apache with mod_rewrite
+. PHP 5.4 or higher
+
+== Installation
+
+Copy maven-proxy into a web-accessible directory of your web server.
+
+== Usage Instructions
+
+=== Single Artifact In Root of Repository
+
+==== Publishing with MGP
+
+1. Build your jar and include it in your Github project.  I often add a "bin" directory to the root of my repositories where I copy my deployables.
+2. Create a pom.xml file for your library in the root directory, if it doesn't exist already.
+3. Add a `<jar.path>` custom property in your pom.xml file to point to the jar.  E.g.
++
+[source,xml]
+-----
+<properties>
+  <jar.path>bin/mylibrary.jar</jar.path>
+</properties>
+-----
+4. Commit and Push to Github
+
+==== Building with MGP
+
+**Step 1**: Add the MGP repository to your build file
+
+[source,xml]
+----
+<repositories>
+    <repository>
+        <id>mgp</id>
+        <url>https://example.com/mgp</url>
+    </repository>
+</repositories>
+----
+
+**Step 2**: Add The Dependency
+
+[source,xml]
+----
+<dependency>
+    <groupId>com.github.User</groupId>
+    <artifactId>Repo</artifactId>
+    <version>Tag</version>
+</dependency>
+---- 
+
+=== Multiple Artifacts in Repository
+
+==== Publishing with MGP
+
+1. Build your jar and include it in your Github project.  I often add a "bin" directory to the root of my repositories where I copy my deployables.
+2. Create a subdirectory in your repository with the name you want for your artifact. 
+3. Create a pom.xml file for your library in the artifact directory you created in the previous step.  The `<groupId>`, '<artifactId>`, and `<version>` tags must exist but their values will be ignored and overwitten by MGP to reflect the values defined by the request.
+3. Add a `<jar.path>` custom property in your pom.xml file to point to the jar.  E.g.
++
+[source,xml]
+-----
+<properties>
+  <jar.path>../bin/mylibrary.jar</jar.path>
+</properties>
+-----
+4. Commit and Push to Github
+
+==== Building with MGP
+
+**Step 1**: Add the MGP repository to your build file
+
+[source,xml]
+----
+<repositories>
+    <repository>
+        <id>mgp</id>
+        <url>https://example.com/mgp</url>
+    </repository>
+</repositories>
+----
+
+**Step 2**: Add The Dependency
+
+[source,xml]
+----
+<dependency>
+    <groupId>com.github.User.Repo</groupId>
+    <artifactId>Subdirectory</artifactId>
+    <version>Tag</version>
+</dependency>
+---- 
+
