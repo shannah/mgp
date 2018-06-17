@@ -39,7 +39,7 @@
 		var userName = parts[0];
 		var repoName = parts[1];
 		
-		if (artifactId == null || artifactId == repoName) {
+		if (!artifactId || artifactId == repoName) {
 			out.groupId = 'com.github.'+userName;
 			out.artifactId = repoName;
 		} else {
@@ -51,32 +51,77 @@
 		
 	}
 	
-	function showNotFound(artifact) {
+	function showTemplate(name, artifact) {
+		//console.log("Showing found");
 		$('#response').empty();
-		$('#templates .template.not-found').clone().appendTo($('#response'));
+		var tpl = $('#templates .template.'+name).clone();
+		$('[data-id]', tpl).each(function() {
+			$(this).attr('id', $(this).attr('data-id'));
+		});
+		
+		decorate(tpl, artifact);
+		tpl.appendTo($('#response'));
+	}
+	
+	function showNotFound(artifact) {
+		showTemplate('not-found', artifact);
 	}
 	
 	function showFound(artifact) {
-		console.log("Showing found");
-		$('#response').empty();
-		$('#templates .template.found').clone().appendTo($('#response'));
+		showTemplate('found', artifact);
+	}
+	
+	function decorate(root, artifact) {
+		$('.snippet-toggle', root).click(function() {
+			var type = $(this).hasClass('gradle') ? 'gradle' :
+				$(this).hasClass('sbt') ? 'sbt' : 'maven';
+				
+			$('body').removeClass('maven').removeClass('gradle').removeClass('sbt')
+				.addClass(type);
+			$('.snippet-toggle').removeClass('active');
+			$('.snippet-toggle.'+type).addClass('active');
+
+			return false;
+		});
+		$('body').removeClass('artifact').removeClass('subartifact');
+		if (artifact) {
+			console.log(artifact);
+			$('span.artifact-id', root).text(artifact.artifactId);
+			$('pre', root).each(function() {
+				var text = $(this).text();
+				text = text.replace(/\{\{groupId\}\}/g, artifact.groupId);
+				text = text.replace(/\{\{artifactId\}\}/g, artifact.artifactId);
+				text = text.replace(/\{\{version\}\}/g, artifact.version);
+				$(this).text(text);
+			});
+			
+			if (artifact.groupId.split(/\./).length  == 3) {
+				$('body').addClass('artifact');
+			} else {
+				$('body').addClass('subartifact');
+			}
+		}
 	}
 	
 	$(document).ready(function() {
-		$('#search').click(function() {
+	
+		
+	
+		$('#lookup-form').submit(function() {
 			var artifact = parseArtifact($('#repo-url').val(), $('#artifact-id').val(), $('#version').val());
 			if (artifact.error) {
 				alert(artifact.error);
-				return;
+				return false;
 			}
 			checkArtifact(artifact.groupId, artifact.artifactId, artifact.version)
 				.then(function(responseCode) {
 					if (responseCode == 404) {
-						showNotFound();
+						showNotFound(artifact);
 					} else {
-						showFound();
+						showFound(artifact);
 					}
 				});
+			return false;
 		});
 	});
 })();
