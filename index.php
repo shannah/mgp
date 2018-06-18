@@ -1,4 +1,26 @@
 <?php
+/*
+ * Copyright (c) 2018 Web Lite Solutions Corp.
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 define('PAGE_URL', (isset($_SERVER['HTTPS']) ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]");
 $mgpURL = PAGE_URL;
 if (preg_match('/\/index.php.*$/', $mgpURL)) {
@@ -12,7 +34,8 @@ if (preg_match('/\/index.php.*$/', $mgpURL)) {
 		<meta charset="utf-8">
     	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-	
+		<!-- Place this tag in your head or just before your close body tag. -->
+		<script async defer src="https://buttons.github.io/buttons.js"></script>
 		<title>MGP: Maven (Github) Proxy</title>
 		<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous"/>
 		<style type="text/css">
@@ -36,7 +59,11 @@ if (preg_match('/\/index.php.*$/', $mgpURL)) {
 				display: block;
 			}
 			
-			
+			.footer p {
+				text-align:center;
+				padding:0;
+				margin:0
+			}
 		</style>
 		<script
   src="https://code.jquery.com/jquery-3.3.1.min.js"
@@ -273,6 +300,13 @@ if (preg_match('/\/index.php.*$/', $mgpURL)) {
 
 				</div>
 			</div>
+			<div class="footer">
+				<p><small>Created by <a href="http://sjhannah.com">Steve Hannah</a></small></p>
+				<p><small>Read more about MGP on <a href="https://github.com/shannah/mpg">Github</a></small></p>
+				<p><!-- Place this tag where you want the button to render. -->
+<a class="github-button" href="https://github.com/shannah/mgp" data-size="large" aria-label="Star shannah/mgp on GitHub">Star</a></p>
+			</div>
 		</div>
+		<a href="https://github.com/shannah/mgp"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>
 	</body>
 </html>

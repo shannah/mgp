@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<project name="mgp" default="default" basedir=".">
+    <description>Runs MGP</description>
+    <property name="php.path" value="php"/>
+    <property name="php.port" value="8000"/>
+	<target name="run" description="Runs mgp using PHP's development webserver">
+		<echo>Starting PHP Development WebServer</echo>
+		<echo message="Using PHP at ${php.path}.  Use -Dphp.path=path/to/php flag to specify alternate PHP binary."/>
+		<echo message="On Port ${php.port}.  Use -Dphp.port=XXXX to specify alternate port."/>
+		<echo message="Point your Webbrowser to http://localhost:${php.port} to access the MGP console"/>
+		<exec executable="${php.path}">
+			<arg value="-S"/>
+			<arg value="localhost:${php.port}"/>
+			<arg value="router.php"/>
+		</exec>
+	</target>
+	
+	<target name="default" depends="run"/>
+</project>

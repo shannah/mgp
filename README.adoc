@@ -2,6 +2,10 @@
 
 A PHP script that dynamically publishes Github repositories as maven repositories
 
+== License
+
+MIT
+
 == Synopsis
 
 So you've developed a library that you want to distribute to other Java developers  There are 3 primary ways to distribute this:
