@@ -2,6 +2,8 @@
 
 A PHP script that dynamically publishes Github repositories as maven repositories
 
+https://mgp.weblite.ca[Try Demo]
+
 == License
 
 MIT
