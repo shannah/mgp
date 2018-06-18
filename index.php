@@ -302,7 +302,7 @@ if (preg_match('/\/index.php.*$/', $mgpURL)) {
 			</div>
 			<div class="footer">
 				<p><small>Created by <a href="http://sjhannah.com">Steve Hannah</a></small></p>
-				<p><small>Read more about MGP on <a href="https://github.com/shannah/mpg">Github</a></small></p>
+				<p><small>Read more about MGP on <a href="https://github.com/shannah/mgp">Github</a></small></p>
 				<p><!-- Place this tag where you want the button to render. -->
 <a class="github-button" href="https://github.com/shannah/mgp" data-size="large" aria-label="Star shannah/mgp on GitHub">Star</a></p>
 			</div>
