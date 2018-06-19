@@ -21,13 +21,30 @@
  * SOFTWARE.
  */
 
-define('PAGE_URL', (isset($_SERVER['HTTPS']) ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]");
+define('PAGE_URL', (isset($_SERVER['HTTPS']) ? "https" : "http") . "://".$_SERVER['HTTP_HOST'].$_SERVER['PHP_SELF']);
 $mgpURL = PAGE_URL;
 if (preg_match('/\/index.php.*$/', $mgpURL)) {
 	$mgpURL = substr($mgpURL, 0, strpos($mgpURL, '/index.php'));
 } else if ($mgpURL{strlen($mgpURL)-1} == '/') {
 	$mgpURL = substr($mgpURL, 0, strlen($mgpURL)-1);
 }
+
+
+$groupId = 'com.github.shannah.phpjar';
+$artifactId = 'phpjar-thin';
+$version = 'master-SNAPSHOT';
+$lookupClass = 'lookup-visible';
+if (@$_GET['q']) {
+	list($groupId, $artifactId, $version) = explode(':', $_GET['q']);
+	$lookupClass = 'lookup-hidden';
+}
+$groupIdParts = explode('.', $groupId);
+$repoUrl = 'https://github.com/'.$groupIdParts[2];
+if (count($groupIdParts)==4) {
+	$repoUrl .= '/'.$groupIdParts[3];
+}
+
+
 ?><!doctype html>
 <html lang="en">
 	<head>
@@ -64,6 +81,18 @@ if (preg_match('/\/index.php.*$/', $mgpURL)) {
 				padding:0;
 				margin:0
 			}
+			
+			body.lookup-hidden #lookup-form {
+				display:none;
+			}
+			
+			
+			
+			body.lookup-visible #lookup-form {
+				display:block;
+			}
+			
+			
 		</style>
 		<script
   src="https://code.jquery.com/jquery-3.3.1.min.js"
@@ -73,7 +102,8 @@ if (preg_match('/\/index.php.*$/', $mgpURL)) {
 		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js" integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T" crossorigin="anonymous"></script>
 		<script src="js/index.js"></script>
 	</head>
-	<body class="maven">
+	<body class="maven <?php echo htmlspecialchars($lookupClass);?>" data-mgp-url="<?php echo htmlspecialchars($mgpURL);?>">
+		
 		<div class="container-fluid">
 			<h1>MGP: Maven (Github) Proxy</h1>
 		
@@ -82,18 +112,18 @@ if (preg_match('/\/index.php.*$/', $mgpURL)) {
 			<form id="lookup-form">
 			  <div class="form-group">
 				<label for="repo-url">GitHub Repository URL</label>
-				<input type="url" class="form-control" id="repo-url" aria-describedby="repo-url-help" placeholder="Enter Github repo URL" value="https://github.com/shannah/php4j">
+				<input type="url" class="form-control" id="repo-url" aria-describedby="repo-url-help" placeholder="Enter Github repo URL" value="<?php echo htmlspecialchars($repoUrl);?>">
 				<small id="repo-url-help" class="form-text text-muted">The URL of the Github Repository where library is hosted</small>
 			  </div>
 			  <div class="form-group">
 				<label for="artifact-id">Artifact ID</label>
-				<input type="text" class="form-control" id="artifact-id" placeholder="" value="php4j-thin">
+				<input type="text" class="form-control" id="artifact-id" placeholder="" value="<?php echo htmlspecialchars($artifactId);?>">
 				<small id="artifact-id-help" class="form-text text-muted">If artifact is defined in subdirectory of repository, enter the artifact name here.  Leave blank to use artifact defined in repository root.</small>
 				
 			  </div>
 			  <div class="form-group">
 				<label for="version">Version</label>
-				<input type="text" class="form-control" id="version" placeholder="master-SNAPSHOT" value="master-SNAPSHOT" aria-describedby="version-help" >
+				<input type="text" class="form-control" id="version" placeholder="master-SNAPSHOT" value="<?php echo htmlspecialchars($version);?>" aria-describedby="version-help" >
 			  	<small id="artifact-id-help" class="form-text text-muted">Enter either tag name, commit sha, or branch name with '-SNAPSHOT' appended</small>
 			  </div>
 			  <button type="submit" class="btn btn-primary">Look Up</button>
@@ -102,6 +132,10 @@ if (preg_match('/\/index.php.*$/', $mgpURL)) {
 		
 			<div id="response">
 		
+			</div>
+			
+			<div class="find-other">
+				<p><a href="#lookup-form" id="find-artifact">Lookup another artifact</a></p>
 			</div>
 		
 			<div id="templates" style="display:none">
@@ -218,12 +252,10 @@ if (preg_match('/\/index.php.*$/', $mgpURL)) {
 				</div>
 		
 				<div class="template found">
-					<div class="alert alert-success" role="alert">Artifact was found</div>
+					<div class="alert alert-success" role="alert">Artifact <span class="artifact-id"/> was found</div>
 			
 					<p>To get this artifact into your build:</p>
-					
-					
-					
+
 					<ul class="nav nav-tabs" data-id="addRepo" role="tablist">
 					  <li class="nav-item">
 						<a class="nav-link active snippet-toggle maven" href="#" >Maven</a>
@@ -238,10 +270,6 @@ if (preg_match('/\/index.php.*$/', $mgpURL)) {
 			
 					<p><strong>Step 1.</strong> Add the MGP Repository to your build file</p>
 			
-					
-			
-
-						
 					<div class="snippet maven tab-pane active" data-id="mavenAddRepo" role="tabpanel" aria-labelledby="mavenAddRepo-tab">
 						<pre><?php echo htmlentities(
 							"<repositories>\n" .
@@ -296,6 +324,12 @@ if (preg_match('/\/index.php.*$/', $mgpURL)) {
 						<pre><?php 
 							echo htmlentities("libraryDependencies += \"{{groupId}}\" % \"{{artifactId}}\" % \"{{version}}\"");
 						?></pre>
+					</div>
+					
+					<div class="link-to-instructions">
+						<p><small><a href="#" class="link-to-instructions">Link to these instructions</a></small>
+							<input type="text" class="form-control form-control-sm link-to-instructions-input" style="display:none"/>
+						</p>
 					</div>
 
 				</div>

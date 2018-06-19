@@ -24,7 +24,7 @@
  * It is used to handle page routing as an alternative to the .htaccess file
  * which is used on Apache.
  */
-if (file_exists($_SERVER["DOCUMENT_ROOT"].$_SERVER['REQUEST_URI'])) {
+if (file_exists($_SERVER["DOCUMENT_ROOT"].$_SERVER['PHP_SELF'])) {
 	return false;
 }
 include 'maven-proxy.php';

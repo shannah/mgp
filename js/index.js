@@ -72,6 +72,24 @@
 	}
 	
 	function decorate(root, artifact) {
+
+		$('.link-to-instructions', root).click(function() {
+			$('.link-to-instructions-input', root)
+				.val(
+						$('body').attr('data-mgp-url') + 
+						'?q='+encodeURIComponent(artifact.groupId) + 
+						":"+encodeURIComponent(artifact.artifactId) + 
+						":"+encodeURIComponent(artifact.version)
+				)
+				.fadeIn(function() {
+				
+					$(this).select();
+				}
+			);
+			return false;
+		});
+
+	
 		$('.snippet-toggle', root).click(function() {
 			var type = $(this).hasClass('gradle') ? 'gradle' :
 				$(this).hasClass('sbt') ? 'sbt' : 'maven';
@@ -104,7 +122,12 @@
 	}
 	
 	$(document).ready(function() {
-	
+		$('#find-artifact').click(function() {
+			$('body').removeClass('lookup-hidden').addClass('lookup-visible');
+			setTimeout(function(){$('#repo-url').select();}, 100);
+			
+
+		});
 		
 	
 		$('#lookup-form').submit(function() {
@@ -123,5 +146,9 @@
 				});
 			return false;
 		});
+		
+		if ($('body').hasClass('lookup-hidden')) {
+			$('#lookup-form').submit();
+		}
 	});
 })();
