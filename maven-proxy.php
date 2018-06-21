@@ -20,6 +20,12 @@ class MavenProxy {
             if ($needsInit){
                 $this->db->exec('CREATE TABLE files (groupId TEXT, artifactId TEXT, version TEXT, resource_type TEXT, sha_checksum TEXT, etag TEXT, PRIMARY KEY(groupId, artifactId, version, resource_type))');
             }
+            $dbVersion = $this->db->query('PRAGMA user_version')->fetchArray()[0];
+			if ($dbVersion < 1) {
+				$this->db->exec('ALTER TABLE files ADD last_updated INTEGER');
+				$this->db->exec('PRAGMA user_version=1');
+			}
+            
             
         }
         return $this->db;
@@ -136,6 +142,33 @@ class MavenProxy {
     }
     
     
+    function get_last_updated($groupId, $artifactId, $version, $resource_type) {
+    	$sha = $this->get_sha1($groupId, $artifactId, $version, $resource_type);
+
+    	$statement = $this->db()->prepare('SELECT last_updated from files where groupId=:groupId and artifactId=:artifactId and version=:version and resource_type=:resource_type');
+    	$statement->bindParam(':groupId', $groupId);
+    	$statement->bindParam(':artifactId', $artifactId);
+    	$statement->bindParam(':version', $version);
+    	$statement->bindParam(':resource_type', $resource_type);
+    	$result = $statement->execute();
+		$mtime = null;
+    	if ($row = $result->fetchArray()) {
+    		$mtime = $row[0];
+    	}
+    	$updateStmt = $this->db()->prepare('UPDATE files set last_updated=:last_updated where groupId=:groupId and artifactId=:artifactId and version=:version and resource_type=:resource_type');
+    	$updateStmt->bindParam(':groupId', $groupId);
+    	$updateStmt->bindParam(':artifactId', $artifactId);
+    	$updateStmt->bindParam(':version', $version);
+    	$updateStmt->bindParam(':resource_type', $resource_type);
+    	$updateStmt->bindParam(':last_updated', time());
+    	if (!$mtime) {
+    		$updateStmt->execute();
+    		$mtime = time();
+    	}
+    	return $mtime;
+    	
+    }
+    
     function get_sha1($groupId, $artifactId, $version, $resourceType) {
         $statement = $this->db()->prepare('SELECT sha_checksum, etag FROM files where groupId=:groupId and artifactId=:artifactId and version=:version and resource_type=:resource_type');
         $statement->bindParam(':groupId', $groupId);
@@ -196,9 +229,9 @@ class MavenProxy {
         }
         if (isset($newEtag)) {
             if (isset($etag)) {
-                $statement = $this->db()->prepare("UPDATE files set etag=:etag, sha_checksum=:sha_checksum where groupId=:groupId and artifactId=:artifactId and version=:version and resource_type=:resource_type");    
+                $statement = $this->db()->prepare("UPDATE files set etag=:etag, sha_checksum=:sha_checksum, last_updated=:last_updated where groupId=:groupId and artifactId=:artifactId and version=:version and resource_type=:resource_type");    
             } else {
-                $statement = $this->db()->prepare("INSERT INTO files (groupId, artifactId, version, resource_type, sha_checksum, etag) values (:groupId, :artifactId, :version, :resource_type, :sha_checksum, :etag)");
+                $statement = $this->db()->prepare("INSERT INTO files (groupId, artifactId, version, resource_type, sha_checksum, etag, last_updated) values (:groupId, :artifactId, :version, :resource_type, :sha_checksum, :etag, :last_updated)");
             }
             $statement->bindParam(':etag', $newEtag);
             $statement->bindParam(':sha_checksum', $sha);
@@ -206,6 +239,7 @@ class MavenProxy {
             $statement->bindParam(':artifactId', $artifactId);
             $statement->bindParam(':version', $version);
             $statement->bindParam(':resource_type', $resourceType);
+            $statement->bindParam(':last_updated', time());
             $statement->execute();
         }
         return $sha;
@@ -252,6 +286,10 @@ class MavenProxy {
             $file = $parts[3];
             
         }
+        if (preg_match('/-SNAPSHOT-\d{8}\.\d+$/', $version)) {
+        	$version = preg_replace('/-\d{8}\.\d+$/', '', $version);
+        }
+        //echo $version;exit;
         
         if (preg_match('/-SNAPSHOT$/', $version)) {
             // This is a branch
@@ -303,11 +341,35 @@ class MavenProxy {
             exit;
         }
         if (preg_match('/maven-metadata.xml(.sha1)?$/', $requestUri, $matches)) {
+        	$snapshotsStr = '';
+        	if (preg_match('/-SNAPSHOT$/', $version)) {
+        		$jarMTime = $this->get_last_updated($groupId, $artifactId, $version, 'jar');
+        		$pomMTime = $this->get_last_updated($groupId, $artifactId, $version, 'pom');
+        		$snapshotsStr = "<versioning>\n"
+        		    . "    <snapshotVersions>\n"
+        			. "      <snapshotVersion>\n"
+        			. "        <extension>jar</extension>\n"
+        			. "        <value>".htmlentities($version.'-'.gmdate('Ymd', $jarMTime).'.'.$jarMTime)."</value>\n"
+        			. "        <updated>".gmdate('YmdHis', $jarMTime)."</updated>\n"
+        			. "      </snapshotVersion>\n"
+        			. "      <snapshotVersion>\n"
+        			. "        <extension>pom</extension>\n"
+        			. "        <value>".htmlentities($version.'-'.gmdate('Ymd', $pomMTime).'.'.$pomMTime)."</value>\n"
+        			. "        <updated>".gmdate('YmdHis', $pomMTime)."</updated>\n"
+        			. "      </snapshotVersion>\n"
+        			. "    </snapshotVersions>\n"
+        			. "</versioning>";
+        			
+        		//$snapshotsStr = "<versioning><snapshot><timestamp>".gmdate('YmdHis', $jarMTime)."</timestamp></snapshot></versioning>";
+        		
+        	}
+        
             $metadataStr = <<<END
 <metadata>
 <groupId>$groupId</groupId>
 <artifactId>$artifactId</artifactId>
 <version>$version</version>
+$snapshotsStr
 </metadata>
 END;
             if (@$matches[1]) {
