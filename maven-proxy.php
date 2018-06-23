@@ -341,6 +341,13 @@ class MavenProxy {
             exit;
         }
         if (preg_match('/maven-metadata.xml(.sha1)?$/', $requestUri, $matches)) {
+        
+        	$jarUrl = $this->get_remote_url($groupId, $artifactId, $version, 'jar');
+        	if (!isset($jarUrl)) {
+        		$this->error_not_found_404();
+        	}	
+            
+        
         	$snapshotsStr = '';
         	if (preg_match('/-SNAPSHOT$/', $version)) {
         		$jarMTime = $this->get_last_updated($groupId, $artifactId, $version, 'jar');
